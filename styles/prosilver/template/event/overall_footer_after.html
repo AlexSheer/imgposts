@@ -1,20 +1,25 @@
 <!-- IF LAST_IMAGES_ATACHMENT -->
 <!-- IF IMAGES_ATT_CAROUSEL -->
 <!-- INCLUDEJS jquery.carouFredSel-5.2.2-packed.js -->
-<!-- ENDIF -->
+<script type="text/javascript" language="javascript">
+	$(function() {
+		//	Scrolled by user interaction
+		$('#scroll-jq').carouFredSel({
+			auto: true,
+			prev: '#prev',
+			next: '#next',
+			scroll:{
+				items:1,
+				duration:500,
+				pauseOnHover: true,
+			},
+		});
+	});
+	</script>
+<!-- ELSE -->
 <script type="text/javascript">
 $(document).ready(function() {
 $('#scroll-crawl h3 a span').unwrap();
-<!-- IF IMAGES_ATT_CAROUSEL -->
-	$('#scroll-jq img').load(function() {
-		$('#scroll-jq').carouFredSel({
-			prev: '#prev2',
-			next: '#next2',
-			scroll: 1,
-		});
-		return false;
-	});
-<!-- ELSE -->
 	marqueeInit({
 		uniqueid: 'scroll-cr',
 		style: {
@@ -28,7 +33,7 @@ $('#scroll-crawl h3 a span').unwrap();
 		neutral: 600,
 		savedirection: false
 	});
-<!-- ENDIF -->
 });
 </script>
+<!-- ENDIF -->
 <!-- ENDIF -->
