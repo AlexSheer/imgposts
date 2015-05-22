@@ -420,8 +420,18 @@ class helper
 	// Clear thumbs cache
 	public function clear_cache()
 	{
+		// Search images
 		$forums = array();
 		$sql_where = '';
+		if ($this->config['last_images_attachment_ignore'])
+		{
+			$sql_where .= ' AND forum_id NOT IN ('. $this->config['last_images_attachment_ignore'] .') ';
+		}
+		if ($this->config['first_images_forum_ignore'])
+		{
+			$sql_where .= ' AND forum_id NOT IN ('. $this->config['first_images_forum_ignore'] .') ';
+		}
+
 		$sql = 'SELECT forum_id
 			FROM ' . FORUMS_TABLE . '
 			WHERE forum_type NOT IN (' . FORUM_CAT . ', ' . FORUM_LINK . ')
@@ -433,10 +443,14 @@ class helper
 		}
 		$this->db->sql_freeresult($result);
 
-		// Search images
 		$chars = '[img:';
 		$pattern = array('.jpg', '.jpg' , '.jpg');
 		$replacement = array('/source', '/mini' , '/medium');
+		$sql_where = '';
+		if($this->config['last_images_attachment_ignore_topic'])
+		{
+			$sql_where .= ' AND topic_id NOT IN ('. $this->config['last_images_attachment_ignore_topic'] .') ';
+		}
 
 		foreach($forums as $forum_id)
 		{
@@ -445,6 +459,7 @@ class helper
 				WHERE post_text '. $this->db->sql_like_expression($this->db->get_any_char() . $chars . $this->db->get_any_char()) . '
 				AND post_visibility = 1
 				AND forum_id =  '. $forum_id .'
+				' . $sql_where . '
 				ORDER BY post_time DESC';
 			$result = $this->db->sql_query_limit($sql, ($this->config['last_images_attachment_count']));
 			while($attach = $this->db->sql_fetchrow($result))
@@ -475,7 +490,6 @@ class helper
 			}
 			$this->db->sql_freeresult($result);
 		}
-
 		array_unique($current_posted);
 		array_map('trim', $current_posted); // Rest images
 
@@ -499,6 +513,29 @@ class helper
 		sort($files);
 
 		// Search attachments
+
+		$forums = array();
+		$sql_where = '';
+		if ($this->config['first_images_forum_ignore'])
+		{
+			$sql_where .= ' AND p.forum_id NOT IN ('. $this->config['first_images_forum_ignore'] .') ';
+		}
+		if ($this->config['last_images_attachment_ignore_topic'])
+		{
+			$sql_where .= ' AND p.topic_id NOT IN ('. $this->config['last_images_attachment_ignore_topic'] .') ';
+		}
+
+		$sql = 'SELECT forum_id
+			FROM ' . FORUMS_TABLE . '
+			WHERE forum_type NOT IN (' . FORUM_CAT . ', ' . FORUM_LINK . ')
+			' . $sql_where;
+		$result = $this->db->sql_query($sql);
+		while($row = $this->db->sql_fetchrow($result))
+		{
+			$forums[] = $row['forum_id'];
+		}
+		$this->db->sql_freeresult($result);
+
 		foreach($forums as $forum_id)
 		{
 			$sql = 'SELECT a.attach_id, a.post_msg_id, a.extension, p.post_id, p.topic_id, p.post_time, p.post_visibility, p.forum_id
@@ -507,6 +544,7 @@ class helper
 				AND (mimetype = "image/jpeg" OR mimetype = "image/png" OR mimetype = "image/gif")
 				AND p.post_visibility = 1
 				AND p.forum_id =  '. $forum_id .'
+				' . $sql_where . '
 				GROUP BY a.post_msg_id DESC LIMIT ' . $this->config['last_images_attachment_count'] .' ';
 			$result = $this->db->sql_query($sql);
 			while($attach = $this->db->sql_fetchrow($result))
