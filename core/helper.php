@@ -18,6 +18,7 @@ class helper
 	protected $php_ext;
 	protected $db;
 	protected $auth;
+	protected $phpbb_log;
 
 	public function __construct (
 		\phpbb\template\template $template,
@@ -56,6 +57,17 @@ class helper
 	// Create thumbs from [img][/img] (c) Sheer
 	public function last_images($forum_id = false, $images_step = 0)
 	{
+		$this->user->add_lang_ext('bb3mobi/imgposts', 'info_acp_imgposts');
+
+		$this->template->assign_vars(array(
+			'L_IMAGES_ATACHMENT'	=> $this->user->lang['LAST_IMAGES_ATACHMENT'],
+			'IMAGES_BOTTOM_TYPE'	=> $this->config['last_images_attachment_bottom'],
+			'IMAGES_TOP_INVERT'		=> $this->config['last_images_attachment_top_invert'],
+			'IMAGES_ATT_CAROUSEL'	=> $this->config['last_images_attachment_carousel'],
+			'IMAGES_ATTACH_SIZE'	=> $this->config['last_images_attachment_size'],
+			)
+		);
+
 		$thumbs = array();
 		$pattern = array('.jpg', '.jpg' , '.jpg');
 		$replacement = array('/source', '/mini' , '/medium');
@@ -110,6 +122,10 @@ class helper
 		$att_count = $create_count = 0;
 		while($attach = $this->db->sql_fetchrow($result))
 		{
+			if($att_count >= $this->config['last_images_attachment_count'])
+			{
+				break;
+			}
 			$is_quoted = false;
 			$attach['post_text'] = str_replace("\n", '', $attach['post_text']);
 			if(preg_match_all('#\[quote(.*?)\](.*?)\[\/quote:(.*?)\]#iU', $attach['post_text'], $matches))
@@ -183,16 +199,7 @@ class helper
 		}
 
 		$this->db->sql_freeresult($result);
-		$this->user->add_lang_ext('bb3mobi/imgposts', 'info_acp_imgposts');
-		$this->template->assign_vars(array(
-			'L_IMAGES_ATACHMENT'	=> $this->user->lang['LAST_IMAGES_ATACHMENT'],
-			'IMAGES_BOTTOM_TYPE'	=> $this->config['last_images_attachment_bottom'],
-			'IMAGES_TOP_INVERT'		=> $this->config['last_images_attachment_top_invert'],
-			'IMAGES_ATT_CAROUSEL'	=> $this->config['last_images_attachment_carousel'],
-			'IMAGES_ATTACH_SIZE'	=> $this->config['last_images_attachment_size'] + 10,
-			'IMAGES_ATTACHT_COUNT'	=> $att_count,
-			)
-		);
+
 		if ($att_count >= $this->config['last_images_attachment_count_min'])
 		{
 			$this->template->assign_var('LAST_IMAGES_ATACHMENT', $this->config['last_images_attachment']);
@@ -241,6 +248,16 @@ class helper
 
 		if (sizeof($forum_ary))
 		{
+			$this->user->add_lang_ext('bb3mobi/imgposts', 'info_acp_imgposts');
+			$this->template->assign_vars(array(
+				'L_IMAGES_ATACHMENT'	=> $this->user->lang['LAST_IMAGES_ATACHMENT'],
+				'IMAGES_BOTTOM_TYPE'	=> $this->config['last_images_attachment_bottom'],
+				'IMAGES_TOP_INVERT'		=> $this->config['last_images_attachment_top_invert'],
+				'IMAGES_ATT_CAROUSEL'	=> $this->config['last_images_attachment_carousel'],
+				'IMAGES_ATTACH_SIZE'	=> $this->config['last_images_attachment_size']
+				)
+			);
+
 			if (!empty($this->config['last_images_attachment_ignore_topic']))
 			{
 				$sql_where .= ' AND t.topic_id NOT IN (' . chop($this->config['last_images_attachment_ignore_topic'], ' ,') . ')';
@@ -276,14 +293,6 @@ class helper
 			}
 			$this->db->sql_freeresult($result);
 
-			$this->user->add_lang_ext('bb3mobi/imgposts', 'info_acp_imgposts');
-			$this->template->assign_vars(array(
-				'L_IMAGES_ATACHMENT'	=> $this->user->lang['LAST_IMAGES_ATACHMENT'],
-				'IMAGES_BOTTOM_TYPE'	=> $this->config['last_images_attachment_bottom'],
-				'IMAGES_TOP_INVERT'		=> $this->config['last_images_attachment_top_invert'],
-				'IMAGES_ATT_CAROUSEL'	=> $this->config['last_images_attachment_carousel'],
-				'IMAGES_ATTACH_SIZE'	=> $this->config['last_images_attachment_size']+10)
-			);
 			if ($att_count >= $this->config['last_images_attachment_count_min'])
 			{
 				$this->template->assign_var('LAST_IMAGES_ATACHMENT', $this->config['last_images_attachment']);
