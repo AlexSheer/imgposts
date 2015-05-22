@@ -420,44 +420,62 @@ class helper
 	// Clear thumbs cache
 	public function clear_cache()
 	{
+		$forums = array();
+		$sql_where = '';
+		$sql = 'SELECT forum_id
+			FROM ' . FORUMS_TABLE . '
+			WHERE forum_type NOT IN (' . FORUM_CAT . ', ' . FORUM_LINK . ')
+			' . $sql_where;
+		$result = $this->db->sql_query($sql);
+		while($row = $this->db->sql_fetchrow($result))
+		{
+			$forums[] = $row['forum_id'];
+		}
+		$this->db->sql_freeresult($result);
+
 		// Search images
 		$chars = '[img:';
 		$pattern = array('.jpg', '.jpg' , '.jpg');
 		$replacement = array('/source', '/mini' , '/medium');
-		$sql = 'SELECT post_id, post_text, post_time
-			FROM ' . POSTS_TABLE . ' p
-			WHERE post_text '. $this->db->sql_like_expression($this->db->get_any_char() . $chars . $this->db->get_any_char()) . '
-			AND post_visibility = 1
-			ORDER BY post_time DESC';
-		$result = $this->db->sql_query_limit($sql, (2 * $this->config['last_images_attachment_count']));
-		while($attach = $this->db->sql_fetchrow($result))
+
+		foreach($forums as $forum_id)
 		{
-			$is_quoted = false;
-			$attach['post_text'] = str_replace("\n", '', $attach['post_text']);
-			if(preg_match_all('#\[quote(.*?)\](.*?)\[\/quote:(.*?)\]#iU', $attach['post_text'], $matches))
+			$sql = 'SELECT post_id, post_text, post_time
+				FROM ' . POSTS_TABLE . ' p
+				WHERE post_text '. $this->db->sql_like_expression($this->db->get_any_char() . $chars . $this->db->get_any_char()) . '
+				AND post_visibility = 1
+				AND forum_id =  '. $forum_id .'
+				ORDER BY post_time DESC';
+			$result = $this->db->sql_query_limit($sql, ($this->config['last_images_attachment_count']));
+			while($attach = $this->db->sql_fetchrow($result))
 			{
-				preg_match_all('#\[img:(.*?)\](.*?)\[\/img:(.*?)#i', $matches[1][0], $match);
-				$is_quoted = (!empty($match[0])) ? true : false;
-			}
-			if(!$is_quoted)
-			{
-				preg_match_all('#\[img:(.*?)\](.*?)\[\/img:(.*?)\]#i', $attach['post_text'], $current_posted_img);
-				foreach ($current_posted_img[2] as $current_file_img)
+				$is_quoted = false;
+				$attach['post_text'] = str_replace("\n", '', $attach['post_text']);
+				if(preg_match_all('#\[quote(.*?)\](.*?)\[\/quote:(.*?)\]#iU', $attach['post_text'], $matches))
 				{
-					$last_x_img_ppp = preg_replace(array('#&\#46;#', '#&\#58;#', '/\[(.*?)\]/'), array('.',':',''), $current_file_img);
-					// Need for phpBB Gallery extension -->
-					$last_x_img_ppp = str_replace($replacement, $pattern, $last_x_img_ppp);
-					//<-- Need for phpBB Gallery extension
-					$last_x_img_pre		= strrchr($last_x_img_ppp, "/");
-					$last_x_img_pre		= substr($last_x_img_pre, 1);
-					$last_x_img_pre		= strtolower(preg_replace('#[^a-zA-Z0-9_+.-]#', '', $last_x_img_pre));
-					$last_x_img_pre_img	= substr($last_x_img_pre, 0, -4);
-					$current_posted[] = 'attach-' . $attach['post_id'] . ''. $last_x_img_pre;
+					preg_match_all('#\[img:(.*?)\](.*?)\[\/img:(.*?)#i', $matches[1][0], $match);
+					$is_quoted = (!empty($match[0])) ? true : false;
+				}
+				if(!$is_quoted)
+				{
+					preg_match_all('#\[img:(.*?)\](.*?)\[\/img:(.*?)\]#i', $attach['post_text'], $current_posted_img);
+					foreach ($current_posted_img[2] as $current_file_img)
+					{
+						$last_x_img_ppp = preg_replace(array('#&\#46;#', '#&\#58;#', '/\[(.*?)\]/'), array('.',':',''), $current_file_img);
+						// Need for phpBB Gallery extension -->
+						$last_x_img_ppp = str_replace($replacement, $pattern, $last_x_img_ppp);
+						//<-- Need for phpBB Gallery extension
+						$last_x_img_pre		= strrchr($last_x_img_ppp, "/");
+						$last_x_img_pre		= substr($last_x_img_pre, 1);
+						$last_x_img_pre		= strtolower(preg_replace('#[^a-zA-Z0-9_+.-]#', '', $last_x_img_pre));
+						$last_x_img_pre_img	= substr($last_x_img_pre, 0, -4);
+						$current_posted[] = 'attach-' . $attach['post_id'] . ''. $last_x_img_pre;
+					}
 				}
 			}
+			$this->db->sql_freeresult($result);
 		}
 
-		$this->db->sql_freeresult($result);
 		array_unique($current_posted);
 		array_map('trim', $current_posted); // Rest images
 
@@ -481,22 +499,27 @@ class helper
 		sort($files);
 
 		// Search attachments
-		$sql = 'SELECT a.attach_id, a.post_msg_id, a.extension, p.post_id, p.topic_id, p.post_time, p.post_visibility
-			FROM ' . ATTACHMENTS_TABLE . ' a, ' . POSTS_TABLE . ' p, phpbb_topics t
-			WHERE a.post_msg_id = p.post_id
-			AND (mimetype = "image/jpeg" OR mimetype = "image/png" OR mimetype = "image/gif")
-			AND p.post_visibility = 1
-			GROUP BY a.post_msg_id DESC LIMIT ' . $this->config['last_images_attachment_count'] .' ';
-		$result = $this->db->sql_query($sql);
-		while($attach = $this->db->sql_fetchrow($result))
+		foreach($forums as $forum_id)
 		{
-			$thumbnail_file = $this->config['images_new_path'] . 'attach-' . $attach['attach_id'] . '.' . $attach['extension'];
-			$attacments[] = 'attach-' . $attach['attach_id'] . '.' . $attach['extension'];
+			$sql = 'SELECT a.attach_id, a.post_msg_id, a.extension, p.post_id, p.topic_id, p.post_time, p.post_visibility, p.forum_id
+				FROM ' . ATTACHMENTS_TABLE . ' a, ' . POSTS_TABLE . ' p, phpbb_topics t
+				WHERE a.post_msg_id = p.post_id
+				AND (mimetype = "image/jpeg" OR mimetype = "image/png" OR mimetype = "image/gif")
+				AND p.post_visibility = 1
+				AND p.forum_id =  '. $forum_id .'
+				GROUP BY a.post_msg_id DESC LIMIT ' . $this->config['last_images_attachment_count'] .' ';
+			$result = $this->db->sql_query($sql);
+			while($attach = $this->db->sql_fetchrow($result))
+			{
+				$thumbnail_file = $this->config['images_new_path'] . 'attach-' . $attach['attach_id'] . '.' . $attach['extension'];
+				$attacments[] = 'attach-' . $attach['attach_id'] . '.' . $attach['extension'];
+			}
+			$this->db->sql_freeresult($result);
 		}
-		$this->db->sql_freeresult($result);
 
 		array_unique($attacments);
 		array_map('trim', $attacments);
+
 		$images_ary = array_diff($files, $current_posted);
 		$deleted_images = array_diff($images_ary, $attacments);
 
