@@ -16,9 +16,10 @@ namespace bb3mobi\imgposts\cron\task;
 
 class tidy_images extends \phpbb\cron\task\base
 {
+	protected $template;
+	protected  $phpbb_log;
 	protected $config;
 	protected $user;
-	protected $template;
 	protected $auth;
 	protected $db;
 	protected $phpbb_root_path;
@@ -27,23 +28,25 @@ class tidy_images extends \phpbb\cron\task\base
 	/**
 	* Constructor.
 	*/
-	public function __construct(
+	public function __construct (
+		\phpbb\template\template $template,
+		\phpbb\log\log $phpbb_log,
 		\phpbb\config\config $config,
 		\phpbb\user $user,
-		\phpbb\template\template $template,
 		\phpbb\auth\auth $auth,
 		\phpbb\db\driver\driver_interface $db,
 		$phpbb_root_path,
 		$php_ext
 	)
 	{
+		$this->template = $template;
+		$this->phpbb_log = $phpbb_log;
 		$this->config = $config;
 		$this->user = $user;
-		$this->phpbb_root_path = $phpbb_root_path;
-		$this->template = $template;
 		$this->auth = $auth;
-		$this->php_ext = $php_ext;
 		$this->db = $db;
+		$this->phpbb_root_path = $phpbb_root_path;
+		$this->php_ext = $php_ext;
 	}
 
 	/**
@@ -71,7 +74,7 @@ class tidy_images extends \phpbb\cron\task\base
 
 	public function cron_tidy_images()
 	{
-		$phpbb_ext_kb = new \bb3mobi\imgposts\core\helper($this->template, $this->config, $this->user, $this->auth, $this->db, $this->phpbb_root_path, $this->php_ext);
+		$phpbb_ext_kb = new \bb3mobi\imgposts\core\helper($this->template, $this->phpbb_log, $this->config, $this->user, $this->auth, $this->db, $this->phpbb_root_path, $this->php_ext);
 		$phpbb_ext_kb->clear_cache();
 		$this->config->set('images_prune_last_gc', time(), true);
 	}
