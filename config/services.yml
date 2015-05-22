@@ -24,9 +24,10 @@ services:
     bb3mobi.imgposts.cron.task.tidy_images:
         class: bb3mobi\imgposts\cron\task\tidy_images
         arguments:
+            - @template
+            - @log
             - @config
             - @user
-            - @template
             - @auth
             - @dbal.conn
             - %core.root_path%
