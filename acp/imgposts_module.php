@@ -141,6 +141,8 @@ class imgposts_module
 
 				$config->set('images_prune_gc', $cron_freq * 86400);
 				$config->set('imgposts_cron', $cron_enable);
+				$phpbb_log->add('admin', $user->data['user_id'], $user->data['session_ip'], 'LOG_IMG_FROM_POSTS_CONFIG', time(), false);
+
 				meta_refresh(3, append_sid($this->u_action));
 				trigger_error($user->lang['CONFIG_UPDATED'] . adm_back_link($this->u_action));
 			}
