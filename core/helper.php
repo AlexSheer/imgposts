@@ -173,8 +173,7 @@ class helper
 					{
 						if ($this->url_exists($last_x_img_ppp))
 						{
-							$this->img_resize($last_x_img_ppp, $this->config['last_images_attachment_size'], $this->phpbb_root_path . $thumbnail_file, $this->config['images_copy_bottom']);
-							$res = true;
+							$res = $this->img_resize($last_x_img_ppp, $this->config['last_images_attachment_size'], $this->phpbb_root_path . $thumbnail_file, $this->config['images_copy_bottom']);
 							$create_count++;
 							$thumbs[] = 'attach-' . $attach['post_id'] . ''. $last_x_img_pre;
 						}
@@ -306,9 +305,14 @@ class helper
 		$size = @getimagesize($file);
 		if (!count($size) || !isset($size[0]) || !isset($size[1]))
 		{
-			return;
+			return false;
 		}
 		$image_type = $size[2];
+
+		if ($size[0] < 16 || $size[1] < 16)
+		{
+			return false;
+		}
 
 // If image size smaller then minimus thumbs size make copy of image -->
 		if ($resize >= $size[0] || $resize >= $size[1])
@@ -345,7 +349,7 @@ class helper
 		}
 		else
 		{
-			return;
+			return false;
 		}
 
 		$width = imagesx($image);
@@ -420,78 +424,143 @@ class helper
 	// Clear thumbs cache
 	public function clear_cache()
 	{
-		// Search images
-		$forums = array();
-		$sql_where = '';
-		if ($this->config['last_images_attachment_ignore'])
+		$current_posted = array();
+		if($this->config['images_attachment'] == 2 || $this->config['images_attachment'] == 0)
 		{
-			$sql_where .= ' AND forum_id NOT IN ('. $this->config['last_images_attachment_ignore'] .') ';
-		}
-		if ($this->config['first_images_forum_ignore'])
-		{
-			$sql_where .= ' AND forum_id NOT IN ('. $this->config['first_images_forum_ignore'] .') ';
-		}
-
-		$sql = 'SELECT forum_id
-			FROM ' . FORUMS_TABLE . '
-			WHERE forum_type NOT IN (' . FORUM_CAT . ', ' . FORUM_LINK . ')
-			' . $sql_where;
-		$result = $this->db->sql_query($sql);
-		while($row = $this->db->sql_fetchrow($result))
-		{
-			$forums[] = $row['forum_id'];
-		}
-		$this->db->sql_freeresult($result);
-
-		$chars = '[img:';
-		$pattern = array('.jpg', '.jpg' , '.jpg');
-		$replacement = array('/source', '/mini' , '/medium');
-		$sql_where = '';
-		if($this->config['last_images_attachment_ignore_topic'])
-		{
-			$sql_where .= ' AND topic_id NOT IN ('. $this->config['last_images_attachment_ignore_topic'] .') ';
-		}
-
-		foreach($forums as $forum_id)
-		{
-			$sql = 'SELECT post_id, post_text, post_time
-				FROM ' . POSTS_TABLE . ' p
-				WHERE post_text '. $this->db->sql_like_expression($this->db->get_any_char() . $chars . $this->db->get_any_char()) . '
-				AND post_visibility = 1
-				AND forum_id =  '. $forum_id .'
-				' . $sql_where . '
-				ORDER BY post_time DESC';
-			$result = $this->db->sql_query_limit($sql, ($this->config['last_images_attachment_count']));
-			while($attach = $this->db->sql_fetchrow($result))
+			// Search images
+			$forums = array();
+			$sql_where = '';
+			if ($this->config['last_images_attachment_ignore'])
 			{
-				$is_quoted = false;
-				$attach['post_text'] = str_replace("\n", '', $attach['post_text']);
-				if(preg_match_all('#\[quote(.*?)\](.*?)\[\/quote:(.*?)\]#iU', $attach['post_text'], $matches))
-				{
-					preg_match_all('#\[img:(.*?)\](.*?)\[\/img:(.*?)#i', $matches[1][0], $match);
-					$is_quoted = (!empty($match[0])) ? true : false;
-				}
-				if(!$is_quoted)
-				{
-					preg_match_all('#\[img:(.*?)\](.*?)\[\/img:(.*?)\]#i', $attach['post_text'], $current_posted_img);
-					foreach ($current_posted_img[2] as $current_file_img)
-					{
-						$last_x_img_ppp = preg_replace(array('#&\#46;#', '#&\#58;#', '/\[(.*?)\]/'), array('.',':',''), $current_file_img);
-						// Need for phpBB Gallery extension -->
-						$last_x_img_ppp = str_replace($replacement, $pattern, $last_x_img_ppp);
-						//<-- Need for phpBB Gallery extension
-						$last_x_img_pre		= strrchr($last_x_img_ppp, "/");
-						$last_x_img_pre		= substr($last_x_img_pre, 1);
-						$last_x_img_pre		= strtolower(preg_replace('#[^a-zA-Z0-9_+.-]#', '', $last_x_img_pre));
-						$last_x_img_pre_img	= substr($last_x_img_pre, 0, -4);
-						$current_posted[] = 'attach-' . $attach['post_id'] . ''. $last_x_img_pre;
-					}
-				}
+				$sql_where .= ' AND forum_id NOT IN ('. $this->config['last_images_attachment_ignore'] .') ';
+			}
+			if ($this->config['first_images_forum_ignore'])
+			{
+				$sql_where .= ' AND forum_id NOT IN ('. $this->config['first_images_forum_ignore'] .') ';
+			}
+
+			$sql = 'SELECT forum_id
+				FROM ' . FORUMS_TABLE . '
+				WHERE forum_type NOT IN (' . FORUM_CAT . ', ' . FORUM_LINK . ')
+				' . $sql_where;
+			$result = $this->db->sql_query($sql);
+			while($row = $this->db->sql_fetchrow($result))
+			{
+				$forums[] = $row['forum_id'];
 			}
 			$this->db->sql_freeresult($result);
+
+			$chars = '[img:';
+			$pattern = array('.jpg', '.jpg' , '.jpg');
+			$replacement = array('/source', '/mini' , '/medium');
+			$sql_where = '';
+			if($this->config['last_images_attachment_ignore_topic'])
+			{
+				$sql_where .= ' AND topic_id NOT IN ('. $this->config['last_images_attachment_ignore_topic'] .') ';
+			}
+
+			foreach($forums as $forum_id)
+			{
+				$sql = 'SELECT post_id, post_text, post_time
+					FROM ' . POSTS_TABLE . ' p
+					WHERE post_text '. $this->db->sql_like_expression($this->db->get_any_char() . $chars . $this->db->get_any_char()) . '
+					AND post_visibility = 1
+					AND forum_id =  '. $forum_id .'
+					' . $sql_where . '
+					ORDER BY post_time DESC';
+				$result = $this->db->sql_query_limit($sql, ($this->config['last_images_attachment_count']));
+				while($attach = $this->db->sql_fetchrow($result))
+				{
+					$is_quoted = false;
+					$attach['post_text'] = str_replace("\n", '', $attach['post_text']);
+					if(preg_match_all('#\[quote(.*?)\](.*?)\[\/quote:(.*?)\]#iU', $attach['post_text'], $matches))
+					{
+						preg_match_all('#\[img:(.*?)\](.*?)\[\/img:(.*?)#i', $matches[1][0], $match);
+						$is_quoted = (!empty($match[0])) ? true : false;
+					}
+					if(!$is_quoted)
+					{
+						preg_match_all('#\[img:(.*?)\](.*?)\[\/img:(.*?)\]#i', $attach['post_text'], $current_posted_img);
+						foreach ($current_posted_img[2] as $current_file_img)
+						{
+							$last_x_img_ppp = preg_replace(array('#&\#46;#', '#&\#58;#', '/\[(.*?)\]/'), array('.',':',''), $current_file_img);
+							// Need for phpBB Gallery extension -->
+							$last_x_img_ppp = str_replace($replacement, $pattern, $last_x_img_ppp);
+							//<-- Need for phpBB Gallery extension
+							$last_x_img_pre		= strrchr($last_x_img_ppp, "/");
+							$last_x_img_pre		= substr($last_x_img_pre, 1);
+							$last_x_img_pre		= strtolower(preg_replace('#[^a-zA-Z0-9_+.-]#', '', $last_x_img_pre));
+							$last_x_img_pre_img	= substr($last_x_img_pre, 0, -4);
+							$current_posted[] = 'attach-' . $attach['post_id'] . ''. $last_x_img_pre;
+						}
+					}
+				}
+				$this->db->sql_freeresult($result);
+			}
+			array_unique($current_posted);
+			array_map('trim', $current_posted); // Rest images
 		}
-		array_unique($current_posted);
-		array_map('trim', $current_posted); // Rest images
+
+		if($this->config['images_attachment'] == 1 || $this->config['images_attachment'] == 0)
+		{
+			// Search attachments
+
+			$forums = array();
+			$sql_where = '';
+
+			if ($this->config['first_images_forum_ignore'])
+			{
+				$sql_where .= ' AND forum_id NOT IN ('. $this->config['first_images_forum_ignore'] .') ';
+			}
+			if ($this->config['last_images_attachment_ignore_topic'])
+			{
+				$sql_where .= ' AND topic_id NOT IN ('. $this->config['last_images_attachment_ignore_topic'] .') ';
+			}
+
+			$sql = 'SELECT forum_id
+				FROM ' . FORUMS_TABLE . ' p
+				WHERE forum_type NOT IN (' . FORUM_CAT . ', ' . FORUM_LINK . ')
+				' . $sql_where;
+			$result = $this->db->sql_query($sql);
+
+			while($row = $this->db->sql_fetchrow($result))
+			{
+				$forums[] = $row['forum_id'];
+			}
+			$this->db->sql_freeresult($result);
+
+
+			foreach($forums as $forum_id)
+			{
+/*
+				$sql = 'SELECT a.attach_id, a.post_msg_id, a.extension, p.post_id, p.topic_id, p.post_time, p.post_visibility, p.forum_id
+					FROM ' . ATTACHMENTS_TABLE . ' a, ' . POSTS_TABLE . ' p, phpbb_topics t
+					WHERE a.post_msg_id = p.post_id
+					AND (mimetype = "image/jpeg" OR mimetype = "image/png" OR mimetype = "image/gif")
+					AND p.post_visibility = 1
+					AND p.forum_id =  '. $forum_id .'
+					' . $sql_where . '
+					GROUP BY a.post_msg_id DESC LIMIT ' . $this->config['last_images_attachment_count'] .' ';
+*/
+					$sql = 'SELECT  a.attach_id, a.post_msg_id, a.extension, p.post_id, p.topic_id, p.post_time, p.post_visibility, p.forum_id
+						FROM ' . POSTS_TABLE . ' p, ' . ATTACHMENTS_TABLE . ' a
+						WHERE a.post_msg_id = p.post_id AND (mimetype = "image/jpeg" OR mimetype = "image/png" OR mimetype = "image/gif")
+						AND p.post_visibility = 1
+						AND p.forum_id = ' . $forum_id . '
+						ORDER BY p.post_time DESC LIMIT ' . $this->config['last_images_attachment_count'];
+				$result = $this->db->sql_query($sql);
+				while($attach = $this->db->sql_fetchrow($result))
+				{
+					$thumbnail_file = $this->config['images_new_path'] . 'attach-' . $attach['attach_id'] . '.' . $attach['extension'];
+					$attacments[] = 'attach-' . $attach['attach_id'] . '.' . $attach['extension'];
+				}
+				$this->db->sql_freeresult($result);
+
+			}
+
+			array_unique($attacments);
+			array_map('trim', $attacments);
+		}
 
 		$handle = @opendir($this->phpbb_root_path . $this->config['images_new_path']);
 		if(!$handle)
@@ -512,56 +581,7 @@ class helper
 		array_map('trim', $files);
 		sort($files);
 
-		// Search attachments
-
-		$forums = array();
-		$sql_where = '';
-		if ($this->config['first_images_forum_ignore'])
-		{
-			$sql_where .= ' AND p.forum_id NOT IN ('. $this->config['first_images_forum_ignore'] .') ';
-		}
-		if ($this->config['last_images_attachment_ignore_topic'])
-		{
-			$sql_where .= ' AND p.topic_id NOT IN ('. $this->config['last_images_attachment_ignore_topic'] .') ';
-		}
-
-		$sql = 'SELECT forum_id
-			FROM ' . FORUMS_TABLE . '
-			WHERE forum_type NOT IN (' . FORUM_CAT . ', ' . FORUM_LINK . ')
-			' . $sql_where;
-		$result = $this->db->sql_query($sql);
-		while($row = $this->db->sql_fetchrow($result))
-		{
-			$forums[] = $row['forum_id'];
-		}
-		$this->db->sql_freeresult($result);
-
-		foreach($forums as $forum_id)
-		{
-			$sql = 'SELECT a.attach_id, a.post_msg_id, a.extension, p.post_id, p.topic_id, p.post_time, p.post_visibility, p.forum_id
-				FROM ' . ATTACHMENTS_TABLE . ' a, ' . POSTS_TABLE . ' p, phpbb_topics t
-				WHERE a.post_msg_id = p.post_id
-				AND (mimetype = "image/jpeg" OR mimetype = "image/png" OR mimetype = "image/gif")
-				AND p.post_visibility = 1
-				AND p.forum_id =  '. $forum_id .'
-				' . $sql_where . '
-				GROUP BY a.post_msg_id DESC LIMIT ' . $this->config['last_images_attachment_count'] .' ';
-			$result = $this->db->sql_query($sql);
-			while($attach = $this->db->sql_fetchrow($result))
-			{
-				$thumbnail_file = $this->config['images_new_path'] . 'attach-' . $attach['attach_id'] . '.' . $attach['extension'];
-				$attacments[] = 'attach-' . $attach['attach_id'] . '.' . $attach['extension'];
-			}
-			$this->db->sql_freeresult($result);
-		}
-
-		array_unique($attacments);
-		array_map('trim', $attacments);
-
-		$images_ary = array_diff($files, $current_posted);
-		$deleted_images = array_diff($images_ary, $attacments);
-
-		if(!empty($files) && sizeof($current_posted) >= $this->config['last_images_attachment_count'])
+		if(!empty($files) && isset($current_posted) && sizeof($current_posted) >= $this->config['last_images_attachment_count'])
 		{
 			foreach ($deleted_images as $del_file)
 			{
