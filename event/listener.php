@@ -84,7 +84,7 @@ class listener implements EventSubscriberInterface
 		if (!empty($this->config['first_images_from_topic']) && $this->config['last_images_attachment'])
 		{
 			$rowset = $event['rowset'];
-			$ar = array();
+			$ar = $topic_ids = array();
 			foreach ($event['topic_list'] as $topic_id)
 			{
 				$row = &$rowset[$topic_id];
@@ -210,7 +210,7 @@ class listener implements EventSubscriberInterface
 			}
 			if($this->config['images_attachment'] == 1 || $this->config['images_attachment'] == 2)	// Attachment from first topis's post or all
 			{
-				if (!$this->helper->exclude_forum($forum_id, $this->config['first_images_forum_ignore']) && count($topic_ids))
+				if (isset($forum_id) && !$this->helper->exclude_forum($forum_id, $this->config['first_images_forum_ignore']) && count($topic_ids))
 				{
 					$this->template->assign_vars(array(
 						'FIRST_IMAGES_FLOAT' => $this->config['first_images_float'],
