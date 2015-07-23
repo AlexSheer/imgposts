@@ -82,8 +82,7 @@ class helper
 		{
 			$sql_forum = ' AND p.forum_id = ' . $forum_id;
 		}
-
-		if ($this->config['last_images_attachment_ignore'])
+		else if ($this->config['last_images_attachment_ignore'])
 		{
 			$sql_where = ' AND p.forum_id NOT IN ('. $this->config['last_images_attachment_ignore'] .') ';
 		}
@@ -174,8 +173,11 @@ class helper
 						if ($this->url_exists($last_x_img_ppp))
 						{
 							$res = $this->img_resize($last_x_img_ppp, $this->config['last_images_attachment_size'], $this->phpbb_root_path . $thumbnail_file, $this->config['images_copy_bottom']);
-							$create_count++;
-							$thumbs[] = 'attach-' . $attach['post_id'] . ''. $last_x_img_pre;
+							if($res)
+							{
+								$create_count++;
+								$thumbs[] = 'attach-' . $attach['post_id'] . ''. $last_x_img_pre;
+							}
 						}
 						else
 						{
